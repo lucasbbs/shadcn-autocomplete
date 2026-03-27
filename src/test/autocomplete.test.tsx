@@ -1,5 +1,5 @@
 import { AutoComplete } from "@/components/autocomplete";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const mockItems = [
@@ -152,5 +152,58 @@ describe("AutoComplete Component", () => {
     fireEvent.focus(input);
 
     expect(screen.getByText("No items.")).toBeInTheDocument();
+  });
+
+  it('should display an add option for a new value', () => {
+    render(
+      <AutoComplete
+        {...defaultProps}
+        searchValue="Fight"
+        onCreateItem={vi.fn()}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("Search...");
+    fireEvent.focus(input);
+
+    expect(screen.getByText('Add "Fight"')).toBeInTheDocument();
+  });
+
+  it("should call onCreateItem when the add option is selected", async () => {
+    const onCreateItem = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <AutoComplete
+        {...defaultProps}
+        searchValue="Fight"
+        onCreateItem={onCreateItem}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("Search...");
+    fireEvent.focus(input);
+
+    const addOption = screen.getByText('Add "Fight"');
+    fireEvent.mouseDown(addOption);
+    fireEvent.click(addOption);
+
+    await waitFor(() => {
+      expect(onCreateItem).toHaveBeenCalledWith("Fight");
+    });
+  });
+
+  it("should hide the add option when the value already exists", () => {
+    render(
+      <AutoComplete
+        {...defaultProps}
+        searchValue="Item 1"
+        onCreateItem={vi.fn()}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("Search...");
+    fireEvent.focus(input);
+
+    expect(screen.queryByText('Add "Item 1"')).not.toBeInTheDocument();
   });
 });

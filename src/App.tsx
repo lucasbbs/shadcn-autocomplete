@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import "./App.css";
 import { AutoComplete } from "./components/autocomplete";
 import { PokemonCard } from "./components/pokemon-card";
-import { getDetail, getList } from "./lib/api";
+import { addItem, getDetail, getList } from "./lib/api";
 
 function App() {
+  const queryClient = useQueryClient();
   const [searchValue, setSearchValue] = useState<string>("");
   const [selectedValue, setSelectedValue] = useState<string>("");
 
@@ -19,6 +20,15 @@ function App() {
     queryFn: () => getDetail(selectedValue),
     enabled: !!selectedValue,
   });
+
+  const handleCreateItem = async (name: string) => {
+    const createdItem = await addItem(name);
+
+    setSelectedValue(createdItem.value);
+    setSearchValue(createdItem.label);
+
+    await queryClient.invalidateQueries({ queryKey: ["data"] });
+  };
 
   return (
     <main className="flex items-center flex-col m-8 p-4 gap-4">
@@ -39,6 +49,7 @@ function App() {
         items={data ?? []}
         isLoading={isLoading}
         emptyMessage="No pokemon found."
+        onCreateItem={handleCreateItem}
       />
       <PokemonCard pokemon={pokemon} isLoading={isLoadingPokemon} />
     </main>

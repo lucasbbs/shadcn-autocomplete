@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Command as CommandPrimitive } from "cmdk";
-import { Check } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   Command,
@@ -22,6 +22,7 @@ type Props<T extends string> = {
   isLoading?: boolean;
   emptyMessage?: string;
   placeholder?: string;
+  onCreateItem?: (value: string) => Promise<void> | void;
 };
 
 export function AutoComplete<T extends string>({
@@ -33,8 +34,10 @@ export function AutoComplete<T extends string>({
   isLoading,
   emptyMessage = "No items.",
   placeholder = "Search...",
+  onCreateItem,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const labels = useMemo(
     () =>
@@ -67,6 +70,30 @@ export function AutoComplete<T extends string>({
       onSearchValueChange(labels[inputValue] ?? "");
     }
     setOpen(false);
+  };
+
+  const trimmedSearchValue = searchValue.trim();
+  const canCreateItem =
+    Boolean(onCreateItem) &&
+    trimmedSearchValue.length > 0 &&
+    !items.some(
+      (item) =>
+        item.label.toLocaleLowerCase() === trimmedSearchValue.toLocaleLowerCase()
+    );
+
+  const onCreateOptionSelect = async () => {
+    if (!onCreateItem || !canCreateItem || isCreating) {
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      await onCreateItem(trimmedSearchValue);
+      setOpen(false);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -104,7 +131,7 @@ export function AutoComplete<T extends string>({
               {isLoading && (
                 <CommandPrimitive.Loading>
                   <div className="p-1">
-                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" data-testid="skeleton" />
                   </div>
                 </CommandPrimitive.Loading>
               )}
@@ -128,6 +155,23 @@ export function AutoComplete<T extends string>({
                       {option.label}
                     </CommandItem>
                   ))}
+                </CommandGroup>
+              ) : null}
+              {canCreateItem && !isLoading ? (
+                <CommandGroup className="border-t">
+                  <CommandItem
+                    value={`__create__${trimmedSearchValue}`}
+                    disabled={isCreating}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onSelect={() => {
+                      void onCreateOptionSelect();
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    {isCreating
+                      ? `Adding "${trimmedSearchValue}"...`
+                      : `Add "${trimmedSearchValue}"`}
+                  </CommandItem>
                 </CommandGroup>
               ) : null}
               {!isLoading ? (
